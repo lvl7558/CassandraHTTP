@@ -82,11 +82,11 @@ public class Main {
             };
 
             // Virtual Threads
-            //Thread.startVirtualThread(run);
+            Thread.startVirtualThread(run);
 
             // Normal Threads
-            Thread thread = new Thread(run);
-            thread.start();
+//            Thread thread = new Thread(run);
+//            thread.start();
         }
 
         private void handleGetRequest(HttpExchange exchange) throws IOException {
@@ -96,6 +96,7 @@ public class Main {
             StringBuilder response = new StringBuilder();
             resultSet.forEach(row -> {
                 int year = row.getInt("year");
+                System.out.println(year);
                 BigDecimal temp = row.getBigDecimal("temp");
                 response.append(String.format("Year: %d, Temp: %f%n", year, temp));
             });
@@ -113,8 +114,9 @@ public class Main {
             int year = json.getAsJsonPrimitive("year").getAsInt();
             double temp = json.getAsJsonPrimitive("temp").getAsDouble();
 
+            String keyspace = "virtual_threads";
             String query = "INSERT INTO temps (year, temp) VALUES (?, ?)";
-            executeUpdate(query, year, temp);
+            executeUpdate(keyspace, query, year, temp);
 
             sendResponse(exchange, 200, "Data inserted successfully");
         }
@@ -130,7 +132,9 @@ public class Main {
             double temp = json.getAsJsonPrimitive("temp").getAsDouble();
 
             String query = "UPDATE temps SET temp = ? WHERE year = ?";
-            executeUpdate(query, temp, year);
+            String keyspace = "virtual_threads";
+
+            executeUpdate(keyspace,query, temp, year);
 
             sendResponse(exchange, 200, "Data updated successfully");
         }
@@ -145,17 +149,29 @@ public class Main {
             int year = json.getAsJsonPrimitive("year").getAsInt();
 
             String query = "DELETE FROM temps WHERE year = ?";
-            executeUpdate(query, year);
+            String keyspace = "virtual_threads";
+            executeUpdate(keyspace,query, year);
 
             sendResponse(exchange, 200, "Data deleted successfully");
         }
 
 
 
-        private void executeUpdate(String query, Object... values) {
-            SimpleStatement statement = SimpleStatement.newInstance(query, values);
+        private void executeUpdate(String keyspace, String query, Object... values) {
+            // Set the keyspace for the session
+            cqlSession.execute("USE " + keyspace);
+
+            // Create the SimpleStatement with placeholders and pass the values
+            SimpleStatement statement = SimpleStatement
+                    .newInstance(query, values)
+                    .setKeyspace(keyspace);
+
+            // Execute the query
             cqlSession.execute(statement);
         }
+
+
+
 
 
 
